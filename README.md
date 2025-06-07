@@ -37,20 +37,4 @@ API 参数说明
 | 音色克隆 | 192321488477827XXXX | 输入音频和文本，输出语音 |
 | 图生视频 | 192321793818091XXXX | 输入图像，生成视频 |
 | 对口型   | 192503523609332XXXX | 输入音频和视频，生成口型同步视频 |
-Flask 接口说明
-1. /generate-video [POST]
-- 参数：audio（音频）、image（图像）、text（文本）
-- 返回：克隆音频 + 图生视频
 
-2. /generate-lip-sync [POST/GET]
-- 参数：audio（文件名）、video（文件名）
-- 返回：合成的对口型视频链接
-部署建议
-你可以将该项目部署到云端服务如：
-- Render
-- Railway
-- Vercel + Flask
-- 传统服务器（如 Nginx + Gunicorn）
-作者
-GitHub: https://github.com/zhayuxin
-项目名称: The Digital Human
