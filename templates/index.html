@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <title>图生视频 + 对口型 Demo</title>
+  <style>
+    body {
+      font-family: "Helvetica Neue", Arial, sans-serif;
+      background-color: #f4f6f9;
+      padding: 30px;
+      color: #333;
+    }
+
+    h1 {
+      font-size: 2rem;
+      margin-bottom: 30px;
+      text-align: center;
+      color: #2c3e50;
+    }
+
+    h2 {
+      color: #34495e;
+      font-size: 1.3rem;
+      margin-bottom: 15px;
+    }
+
+    .section {
+      background-color: white;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      padding: 25px;
+      margin-bottom: 30px;
+      max-width: 700px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    label {
+      font-weight: bold;
+      display: block;
+      margin-top: 12px;
+      margin-bottom: 4px;
+    }
+
+    input[type="file"],
+    input[type="text"],
+    button {
+      width: 100%;
+      padding: 10px;
+      font-size: 1rem;
+      margin-bottom: 10px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      box-sizing: border-box;
+    }
+
+    button {
+      background-color: #3498db;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+
+    button:hover {
+      background-color: #2980b9;
+    }
+
+    video, audio {
+      margin-top: 15px;
+      width: 100%;
+      border-radius: 10px;
+      border: 1px solid #ddd;
+    }
+
+    #countdown-timer {
+      font-size: 1.2rem;
+      font-weight: bold;
+      color: #e67e22;
+      text-align: center;
+    }
+
+    .result-block p {
+      font-size: 0.95rem;
+      color: #555;
+    }
+
+    .result-block span {
+      font-family: monospace;
+      color: #2c3e50;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>🧠 图生视频 + 对口型智能演示</h1>
+   <div class="section">
+    <h2>⏳ 处理倒计时</h2>
+    <p id="countdown-timer">尚未开始</p>
+  </div>
+
+  <div class="section">
+    <h2>1️⃣ 图生视频生成</h2>
+    <form id="video-form">
+      <label>上传图片:</label>
+      <input type="file" name="image" required>
+      <label>上传音频:</label>
+      <input type="file" name="audio" required>
+      <label>输入文本:</label>
+      <input type="text" name="text" placeholder="描述场景或语义" required>
+      <button type="submit">🎬 开始生成</button>
+    </form>
+
+    <div id="video-result" class="result-block" style="display:none;">
+      <h3>✅ 视频生成成功：</h3>
+      <video controls id="video-preview"></video>
+      <p>克隆音频文件名：<span id="audio-name"></span></p>
+      <p>生成视频文件名：<span id="video-name"></span></p>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>2️⃣ 对口型处理</h2>
+    <form id="lipsync-form">
+      <label>克隆音频文件名:</label>
+      <input type="text" name="audio" id="lipsync-audio" placeholder="cloned_xxx.mp3" required>
+      <label>生成视频文件名:</label>
+      <input type="text" name="video" id="lipsync-video" placeholder="generated_xxx.mp4" required>
+    </form>
+
+    <div id="lipsync-result" class="result-block" style="display:none;">
+      <h3>✅ 对口型成功：</h3>
+      <video controls id="lipsync-preview"></video>
+    </div>
+  </div>
+
+
+
+  <script>
+    let countdownSeconds = 20 * 60;
+    let countdownInterval;
+
+    function updateCountdown() {
+      const minutes = Math.floor(countdownSeconds / 60);
+      const seconds = countdownSeconds % 60;
+      document.getElementById("countdown-timer").textContent =
+        `剩余时间：${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+      if (countdownSeconds > 0) {
+        countdownSeconds--;
+      } else {
+        clearInterval(countdownInterval);
+        document.getElementById("countdown-timer").textContent = "⏰ 时间结束！";
+      }
+    }
+
+    function startCountdown() {
+      countdownSeconds = 20 * 60;
+      updateCountdown();
+      countdownInterval = setInterval(updateCountdown, 1000);
+    }
+
+    function stopCountdown(success = true) {
+      clearInterval(countdownInterval);
+      document.getElementById("countdown-timer").textContent = success ? "✅ 生成完成！" : "⚠️ 已中止";
+    }
+
+    // 图生视频提交
+    document.getElementById("video-form").addEventListener("submit", async function (e) {
+      e.preventDefault();
+      const form = e.target;
+      const formData = new FormData(form);
+
+      startCountdown(); // 启动倒计时
+
+      try {
+        const response = await fetch("/generate-video", {
+          method: "POST",
+          body: formData
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          document.getElementById("video-preview").src = result.videoUrl;
+          document.getElementById("audio-name").textContent = result.clonedAudio;
+          document.getElementById("video-name").textContent = result.generatedVideo;
+          document.getElementById("video-result").style.display = "block";
+
+          document.getElementById("lipsync-audio").value = result.clonedAudio;
+          document.getElementById("lipsync-video").value = result.generatedVideo;
+
+          const lipsyncUrl = `/generate-lip-sync?audio=${encodeURIComponent(result.clonedAudio)}&video=${encodeURIComponent(result.generatedVideo)}`;
+          const lipsyncResult = await fetch(lipsyncUrl);
+          const lipsyncJson = await lipsyncResult.json();
+
+          if (lipsyncJson.success) {
+            document.getElementById("lipsync-preview").src = lipsyncJson.videoUrl;
+            document.getElementById("lipsync-result").style.display = "block";
+            stopCountdown(true); // 成功，结束倒计时
+          } else {
+            alert("对口型失败: " + lipsyncJson.error);
+            stopCountdown(false);
+          }
+        } else {
+          alert("生成失败: " + result.error);
+          stopCountdown(false);
+        }
+      } catch (err) {
+        alert("网络或服务器错误");
+        stopCountdown(false);
+      }
+    });
+  </script>
+
+</body>
+</html>
